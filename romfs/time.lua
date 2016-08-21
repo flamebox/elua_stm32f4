@@ -2,7 +2,7 @@ function showtime()
 	local date_t
 	local uartid = uart.CDC
 
-	stm32f4.rtc.set(1471406400)
+	--stm32f4.rtc.set(1471780800)
 
 	while uart.getchar( uartid, 0 ) == "" do
 		print("Now Unix time : "..stm32f4.rtc.gettime())

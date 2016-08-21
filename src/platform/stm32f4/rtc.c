@@ -75,6 +75,54 @@ struct tm Time_GetCalendarTime(time_t t_t)
 }
 
 /*******************************************************************************
+* Function Name  : RTC_Set_Time   RTC_Set_Date
+* Description    :
+* Input    : None
+* Output   : None
+* Return   : None
+*******************************************************************************/
+ErrorStatus RTC_Set_Time(u8 hour,u8 min,u8 sec,u8 ampm)  
+{
+	ErrorStatus err = ERROR;
+    	RTC_TimeTypeDef RTC_TimeTypeInitStructure;  
+      
+    	RTC_TimeTypeInitStructure.RTC_Hours=hour;
+    	RTC_TimeTypeInitStructure.RTC_Minutes=min;
+    	RTC_TimeTypeInitStructure.RTC_Seconds=sec;
+    	RTC_TimeTypeInitStructure.RTC_H12=ampm;
+	
+	PWR_BackupAccessCmd(ENABLE);
+    	err =  RTC_SetTime(RTC_Format_BIN,&RTC_TimeTypeInitStructure);  
+	/*if(ERROR ==  err)
+		printf("Set time failed!\r\n");
+	else
+		printf("Set time ok!\r\n");*/
+	PWR_BackupAccessCmd(DISABLE);
+	return err;
+} 
+
+ErrorStatus RTC_Set_Date(u8 year,u8 month,u8 date,u8 week)  
+{  
+	ErrorStatus err = ERROR;
+	RTC_DateTypeDef RTC_DateTypeInitStructure;  
+	      
+	RTC_DateTypeInitStructure.RTC_Date=date;
+	RTC_DateTypeInitStructure.RTC_Month=month;
+	RTC_DateTypeInitStructure.RTC_WeekDay=week;
+	RTC_DateTypeInitStructure.RTC_Year=year;
+
+	PWR_BackupAccessCmd(ENABLE);
+	err = RTC_SetDate(RTC_Format_BIN,&RTC_DateTypeInitStructure);
+	/*if(ERROR ==  err)
+		printf("Set date failed!\r\n");
+	else
+		printf("Set date ok!\r\n");*/
+	PWR_BackupAccessCmd(DISABLE);
+	return err;
+}  
+
+
+/*******************************************************************************
 * Function Name  : Time_SetRtcTime(time_t time)
 * Description    : 
 * Input    : time_t time  
@@ -85,37 +133,15 @@ ErrorStatus Time_SetRtcTime(time_t time)
 {
 	ErrorStatus status = ERROR;
 	struct tm t_tm;
-	RTC_TimeTypeDef timedef;
-	RTC_DateTypeDef datedef;
-	
 	t_tm = Time_ConvUnixToCalendar(time+28800);
-	datedef.RTC_Year = t_tm.tm_year-2000;
-	datedef.RTC_Month = t_tm.tm_mon;
-	datedef.RTC_Date = t_tm.tm_mday;
-	timedef.RTC_Hours = t_tm.tm_hour;
-	timedef.RTC_Minutes = t_tm.tm_min;
-	timedef.RTC_Seconds = t_tm.tm_sec;
-	timedef.RTC_H12 = RTC_H12_AM;
-	
-	PWR_BackupAccessCmd(ENABLE);
-	RTC_WaitForSynchro();
-	status = RTC_SetTime(RTC_Format_BIN, &timedef);
-	if(ERROR == status) {
-		PWR_BackupAccessCmd(DISABLE);
+
+	status = RTC_Set_Date((t_tm.tm_year-2000),t_tm.tm_mon,t_tm.tm_mday,1); 
+	if(ERROR ==  status)
 		return status;
-	}
-	else
-		PWR_BackupAccessCmd(DISABLE);
-		
-	PWR_BackupAccessCmd(ENABLE);	
-  	RTC_WaitForSynchro();
-	status = RTC_SetDate(RTC_Format_BIN, &datedef);
-	if(ERROR == status) {
-		PWR_BackupAccessCmd(DISABLE);
+	status = RTC_Set_Time(t_tm.tm_hour,t_tm.tm_min,t_tm.tm_sec,RTC_H12_AM); 
+	if(ERROR ==  status)
 		return status;
-	}
-	else
-    		PWR_BackupAccessCmd(DISABLE);
+
 	return status;
 }
 
@@ -129,48 +155,30 @@ ErrorStatus Time_SetRtcTime(time_t time)
 void RTC_Config(void)
 {
 	RTC_InitTypeDef RTC_InitStructure;
-	RTC_TimeTypeDef RTC_TimeStructure;
-	RTC_DateTypeDef RTC_DateStructure;
+
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR,ENABLE);
+	PWR_BackupAccessCmd(ENABLE);
 	
-  	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR,ENABLE);
-  	PWR_BackupAccessCmd(ENABLE);
-  
-  	RCC_LSICmd(ENABLE);
-   	while(RCC_GetFlagStatus(RCC_FLAG_LSIRDY) == RESET);
-    	RCC_RTCCLKConfig(RCC_RTCCLKSource_LSI);
-    	RCC_RTCCLKCmd(ENABLE);
-    	RTC_WaitForSynchro();
-  
-  	if(RTC_ReadBackupRegister(RTC_BKP_DR0) != 0x9527)
-  	{
-    
-	    RTC_WriteProtectionCmd(DISABLE);
-	  
-	    RTC_EnterInitMode();
-	    RTC_InitStructure.RTC_HourFormat = RTC_HourFormat_24;
-	    RTC_InitStructure.RTC_AsynchPrediv = 0x7D-1;
-	    RTC_InitStructure.RTC_SynchPrediv = 0xFF-1;
-	    RTC_Init(&RTC_InitStructure);
-	  
-	    RTC_TimeStructure.RTC_Seconds = 0x00;
-	    RTC_TimeStructure.RTC_Minutes = 0x00;
-	    RTC_TimeStructure.RTC_Hours = 15;
-	    RTC_TimeStructure.RTC_H12 = RTC_H12_AM;
-	    RTC_SetTime(RTC_Format_BIN,&RTC_TimeStructure);
-	  
-	    RTC_DateStructure.RTC_Date = 16;
-	    RTC_DateStructure.RTC_Month = 8;
-	    //RTC_DateStructure.RTC_WeekDay= RTC_Weekday_Thursday;
-	    RTC_DateStructure.RTC_Year = 16;
-	    RTC_SetDate(RTC_Format_BIN,&RTC_DateStructure);
-	  
-	    RTC_ExitInitMode();
-	    RTC_WriteBackupRegister(RTC_BKP_DR0,0X9527);
-	    RTC_WriteProtectionCmd(ENABLE);
-	    //RTC_WriteBackupRegister(RTC_BKP_DR0,0x9527);
-  	}
-  	PWR_BackupAccessCmd(DISABLE);
+	if(RTC_ReadBackupRegister(RTC_BKP_DR0) != 0x9527)
+	{
+		RCC_LSEConfig(RCC_LSE_ON);
+		while (RCC_GetFlagStatus(RCC_FLAG_LSERDY) == RESET);
+		RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);	
+		RCC_RTCCLKCmd(ENABLE);
+	
+		RTC_InitStructure.RTC_AsynchPrediv = 0x7F;
+		RTC_InitStructure.RTC_SynchPrediv  = 0xFF;
+		RTC_InitStructure.RTC_HourFormat   = RTC_HourFormat_24;
+		RTC_Init(&RTC_InitStructure);
+
+		RTC_Set_Time(19,0,0,RTC_H12_AM);
+		RTC_Set_Date(16,8,21,7);     
+		RTC_WriteBackupRegister(RTC_BKP_DR0,0X9527);
+	}
+
+	PWR_BackupAccessCmd(DISABLE);
 }
+
 
 
 // Read the time from the RTC.
@@ -261,7 +269,7 @@ static int rtc_get_time_format( lua_State *L )
 static int rtc_set( lua_State *L )
 {
 	time_t value;
-    value = lua_tonumber( L, 1 );
+	value = lua_tonumber( L, 1 );
 	Time_SetRtcTime((time_t)value);
 	lua_pop( L, 1 );
 	return 1;
