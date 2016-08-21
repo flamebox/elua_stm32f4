@@ -42,3 +42,4 @@ filesystem
   test.lua      led闪烁测试脚本
   time.lua      RTC接口测试程序
   lua.lua       智能方案脚本移植测试脚本
+  room.lua      精准通风智能方案测试脚本。注：运行前必须要将level.txt和table.lua上传到/wo文件夹内
